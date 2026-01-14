@@ -3,6 +3,7 @@ import { PhotoGroup, SelectionState, GroupStatus, ExportMode, ExportOperation } 
 import { analyzeSession } from './services/geminiService';
 import Viewer from './components/Viewer';
 import ConfirmationModal from './components/ConfirmationModal';
+import SettingsPanel from './components/SettingsPanel';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
@@ -29,6 +30,11 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const filmstripRef = useRef<HTMLDivElement>(null);
+
+  // Settings
+  const [showSettings, setShowSettings] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [language, setLanguage] = useState<'zh' | 'en'>('zh');
 
   // Window controls
   const appWindow = getCurrentWindow();
@@ -505,23 +511,23 @@ const App: React.FC = () => {
   }, [showExportMenu]);
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-950 select-none">
+    <div className={`flex flex-col h-screen select-none ${theme === 'dark' ? 'bg-zinc-950' : 'bg-gray-50'}`}>
       {/* Top Nav */}
-      <nav className="h-14 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md flex items-center justify-between px-6 z-20" data-tauri-drag-region>
+      <nav className={`h-14 border-b flex items-center justify-between px-6 z-20 backdrop-blur-md ${theme === 'dark' ? 'border-zinc-800 bg-zinc-900/80' : 'border-gray-200 bg-white/80'}`} data-tauri-drag-region>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center rotate-3 shadow-lg shadow-indigo-500/20 pointer-events-none">
               <i className="fa-solid fa-camera-retro text-xs text-white"></i>
             </div>
-            <span className="font-black text-sm tracking-tighter uppercase text-zinc-100 pointer-events-none">LensLink Pro</span>
+            <span className={`font-black text-sm tracking-tighter uppercase pointer-events-none ${theme === 'dark' ? 'text-zinc-100' : 'text-gray-900'}`}>LensLink Pro</span>
           </div>
   
-          <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800/50" data-tauri-drag-region="false" style={{WebkitAppRegion: 'no-drag'} as any}>
+          <div className={`flex items-center gap-1 p-1 rounded-lg border ${theme === 'dark' ? 'bg-zinc-950 border-zinc-800/50' : 'bg-gray-100 border-gray-300/50'}`} data-tauri-drag-region="false" style={{WebkitAppRegion: 'no-drag'} as any}>
             {(['ALL', 'PICKED', 'REJECTED', 'UNMARKED', 'ORPHANS'] as const).map(f => (
               <button 
                 key={f} 
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${filter === f ? 'bg-zinc-800 text-white shadow-inner' : 'text-zinc-600 hover:text-zinc-300'}`}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${filter === f ? (theme === 'dark' ? 'bg-zinc-800 text-white shadow-inner' : 'bg-white text-gray-900 shadow-md') : (theme === 'dark' ? 'text-zinc-600 hover:text-zinc-300' : 'text-gray-500 hover:text-gray-700')}`}
               >
                 {f}
               </button>
@@ -530,11 +536,11 @@ const App: React.FC = () => {
         </div>
   
         <div className="flex items-center gap-3" data-tauri-drag-region="false" style={{WebkitAppRegion: 'no-drag'} as any}>
-          <div className="flex bg-zinc-950 rounded-lg border border-zinc-800/50 overflow-hidden">
+          <div className={`flex rounded-lg border overflow-hidden ${theme === 'dark' ? 'bg-zinc-950 border-zinc-800/50' : 'bg-white border-gray-300/50'}`}>
             <button 
               onClick={handleImportFiles}
               disabled={isLoading}
-              className="px-4 py-2 text-[11px] font-bold text-zinc-400 hover:bg-zinc-900 border-r border-zinc-800/50 flex items-center gap-2 transition-colors disabled:opacity-50"
+              className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 transition-colors disabled:opacity-50 border-r ${theme === 'dark' ? 'text-zinc-400 hover:bg-zinc-900 border-zinc-800/50' : 'text-gray-600 hover:bg-gray-100 border-gray-300/50'}`}
             >
               <i className={`fa-solid fa-file-circle-plus ${isLoading ? 'animate-pulse' : ''}`}></i> 
               {isLoading ? 'Loading...' : 'Import Files'}
@@ -542,7 +548,7 @@ const App: React.FC = () => {
             <button 
               onClick={handleImportFolder}
               disabled={isLoading}
-              className="px-4 py-2 text-[11px] font-bold text-zinc-400 hover:bg-zinc-900 flex items-center gap-2 transition-colors disabled:opacity-50"
+              className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 transition-colors disabled:opacity-50 ${theme === 'dark' ? 'text-zinc-400 hover:bg-zinc-900' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <i className={`fa-solid fa-folder-open ${isLoading ? 'animate-pulse' : ''}`}></i> 
               {isLoading ? 'Loading...' : 'Import Folder'}
@@ -552,7 +558,7 @@ const App: React.FC = () => {
           <button 
              onClick={() => setShowDeleteConfirm(true)}
              disabled={stats.rejected === 0}
-             className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/30 rounded-lg text-[11px] font-bold transition-all disabled:opacity-30 disabled:pointer-events-none"
+             className={`px-4 py-2 border rounded-lg text-[11px] font-bold transition-all disabled:opacity-30 disabled:pointer-events-none ${theme === 'dark' ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border-rose-500/30' : 'bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white border-rose-300'}`}
           >
             <i className="fa-solid fa-trash-can mr-2"></i> Confirm {stats.rejected} Rejects
           </button>
@@ -567,38 +573,46 @@ const App: React.FC = () => {
                 setShowExportMenu(!showExportMenu);
               }}
               disabled={stats.picked === 0}
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-bold shadow-lg shadow-indigo-600/20 flex items-center gap-2 transition-all disabled:opacity-30 disabled:pointer-events-none"
+              className={`px-5 py-2 rounded-lg text-[11px] font-bold shadow-lg flex items-center gap-2 transition-all disabled:opacity-30 disabled:pointer-events-none ${theme === 'dark' ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20' : 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-indigo-500/30'}`}
             >
               <i className="fa-solid fa-paper-plane"></i> Export Picks
             </button>
             {showExportMenu && (
-              <div className="absolute top-full right-0 mt-2 w-44 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 p-1 flex flex-col">
-                <button onClick={() => { handleExportStart('JPG'); setShowExportMenu(false); }} className="px-4 py-2.5 text-[10px] font-bold text-zinc-400 hover:bg-zinc-800 hover:text-white text-left rounded-lg transition-colors">JPG ONLY</button>
-                <button onClick={() => { handleExportStart('RAW'); setShowExportMenu(false); }} className="px-4 py-2.5 text-[10px] font-bold text-zinc-400 hover:bg-zinc-800 hover:text-white text-left rounded-lg transition-colors">RAW ONLY</button>
-                <button onClick={() => { handleExportStart('BOTH'); setShowExportMenu(false); }} className="px-4 py-2.5 text-[10px] font-bold text-zinc-400 hover:bg-zinc-800 hover:text-white text-left rounded-lg transition-colors border-t border-zinc-800 mt-1 pt-2">RAW + JPG</button>
+              <div className={`absolute top-full right-0 mt-2 w-44 border rounded-xl shadow-2xl z-50 p-1 flex flex-col ${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
+                <button onClick={() => { handleExportStart('JPG'); setShowExportMenu(false); }} className={`px-4 py-2.5 text-[10px] font-bold text-left rounded-lg transition-colors ${theme === 'dark' ? 'text-zinc-400 hover:bg-zinc-800 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>JPG ONLY</button>
+                <button onClick={() => { handleExportStart('RAW'); setShowExportMenu(false); }} className={`px-4 py-2.5 text-[10px] font-bold text-left rounded-lg transition-colors ${theme === 'dark' ? 'text-zinc-400 hover:bg-zinc-800 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>RAW ONLY</button>
+                <button onClick={() => { handleExportStart('BOTH'); setShowExportMenu(false); }} className={`px-4 py-2.5 text-[10px] font-bold text-left rounded-lg transition-colors border-t mt-1 pt-2 ${theme === 'dark' ? 'text-zinc-400 hover:bg-zinc-800 hover:text-white border-zinc-800' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 border-gray-200'}`}>RAW + JPG</button>
               </div>
             )}
           </div>
+
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${theme === 'dark' ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-600 hover:text-gray-800'}`}
+            title={language === 'zh' ? '设置' : 'Settings'}
+          >
+            <i className="fa-solid fa-gear text-sm"></i>
+          </button>
   
           {/* Window Controls */}
-          <div className="flex items-center gap-1 ml-2 border-l border-zinc-800 pl-3">
+          <div className={`flex items-center gap-1 ml-2 border-l pl-3 ${theme === 'dark' ? 'border-zinc-800' : 'border-gray-300'}`}>
             <button
               onClick={handleMinimize}
-              className="w-8 h-8 flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+              className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${theme === 'dark' ? 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200' : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'}`}
               title="最小化"
             >
               <i className="fa-solid fa-window-minimize text-[10px]"></i>
             </button>
             <button
               onClick={handleMaximize}
-              className="w-8 h-8 flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+              className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${theme === 'dark' ? 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200' : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'}`}
               title="最大化/还原"
             >
               <i className="fa-regular fa-window-maximize text-xs"></i>
             </button>
             <button
               onClick={handleClose}
-              className="w-8 h-8 flex items-center justify-center rounded hover:bg-red-600 text-zinc-400 hover:text-white transition-colors"
+              className={`w-8 h-8 flex items-center justify-center rounded hover:bg-red-600 transition-colors hover:text-white ${theme === 'dark' ? 'text-zinc-400' : 'text-gray-500'}`}
               title="关闭"
             >
               <i className="fa-solid fa-xmark text-sm"></i>
@@ -610,15 +624,15 @@ const App: React.FC = () => {
       {/* Main Workspace */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {photos.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900 to-zinc-950 p-20 text-center">
-            <div className="w-24 h-24 bg-zinc-900 rounded-3xl flex items-center justify-center mb-8 border border-zinc-800 shadow-2xl relative">
-              <i className="fa-solid fa-images text-4xl text-zinc-700"></i>
-              <div className="absolute -top-3 -right-3 w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white border-4 border-zinc-950">
+          <div className={`flex-1 flex flex-col items-center justify-center p-20 text-center ${theme === 'dark' ? 'bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900 to-zinc-950' : 'bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-gray-50'}`}>
+            <div className={`w-24 h-24 rounded-3xl flex items-center justify-center mb-8 border shadow-2xl relative ${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
+              <i className={`fa-solid fa-images text-4xl ${theme === 'dark' ? 'text-zinc-700' : 'text-gray-300'}`}></i>
+              <div className={`absolute -top-3 -right-3 w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white border-4 ${theme === 'dark' ? 'border-zinc-950' : 'border-gray-50'}`}>
                 <i className="fa-solid fa-plus text-sm"></i>
               </div>
             </div>
-            <h2 className="text-3xl font-black text-white mb-3 tracking-tighter uppercase">Ready for your shoot?</h2>
-            <p className="max-w-md text-zinc-500 text-lg font-medium leading-snug">
+            <h2 className={`text-3xl font-black mb-3 tracking-tighter uppercase ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Ready for your shoot?</h2>
+            <p className={`max-w-md text-lg font-medium leading-snug ${theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'}`}>
               Import a folder or selection of files. We'll automatically pair your RAW and JPG files for consistent management.
             </p>
           </div>
@@ -626,11 +640,11 @@ const App: React.FC = () => {
           <>
             {/* Viewer Component */}
             {currentPhoto && (
-              <Viewer group={currentPhoto} animationClass={animationClass} onUpdateSelection={updateSelection} />
+              <Viewer group={currentPhoto} animationClass={animationClass} onUpdateSelection={updateSelection} theme={theme} />
             )}
 
             {/* Filmstrip / Thumbnails */}
-            <div className="h-28 bg-zinc-900 border-t border-zinc-800 flex items-center px-4 gap-2 overflow-x-auto overflow-y-hidden" ref={filmstripRef}>
+            <div className={`h-28 border-t flex items-center px-4 gap-2 overflow-x-auto overflow-y-hidden ${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-gray-100 border-gray-200'}`} ref={filmstripRef}>
                {filteredPhotos.map((p, idx) => (
                  <button 
                   key={p.id}
@@ -669,6 +683,7 @@ const App: React.FC = () => {
           groups={photos.filter(p => p.selection === SelectionState.REJECTED)}
           onConfirm={executeFinalDelete}
           onCancel={() => setShowDeleteConfirm(false)}
+          theme={theme}
         />
       )}
       
@@ -680,11 +695,12 @@ const App: React.FC = () => {
           groups={photos.filter(p => p.selection === SelectionState.PICKED)}
           onConfirm={executeExport}
           onCancel={() => setShowExportConfirm(false)}
+          theme={theme}
         />
       )}
 
       {/* Footer Info / Insight */}
-      <footer className="h-10 bg-zinc-950 border-t border-zinc-800 px-6 flex items-center justify-between text-[10px] text-zinc-500 z-20">
+      <footer className={`h-10 border-t px-6 flex items-center justify-between text-[10px] z-20 ${theme === 'dark' ? 'bg-zinc-950 border-zinc-800 text-zinc-500' : 'bg-white border-gray-200 text-gray-500'}`}>
         <div className="flex gap-4">
           <span>{stats.total} TOTAL</span>
           <span className="text-emerald-500 font-bold">{stats.picked} PICKED</span>
@@ -706,6 +722,16 @@ const App: React.FC = () => {
           </button>
         </div>
       </footer>
+
+      {/* Settings Panel */}
+      <SettingsPanel
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        theme={theme}
+        language={language}
+        onThemeChange={setTheme}
+        onLanguageChange={setLanguage}
+      />
     </div>
   );
 };

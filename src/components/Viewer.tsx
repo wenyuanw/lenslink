@@ -8,9 +8,10 @@ interface ViewerProps {
   group: PhotoGroup;
   animationClass: string;
   onUpdateSelection?: (state: SelectionState) => void;
+  theme: 'light' | 'dark';
 }
 
-const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelection }) => {
+const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelection, theme }) => {
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -111,7 +112,7 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelectio
       {/* Main Image Stage */}
       <div 
         ref={containerRef}
-        className="flex-1 bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden cursor-crosshair"
+        className={`flex-1 flex items-center justify-center p-4 relative overflow-hidden cursor-crosshair ${theme === 'dark' ? 'bg-zinc-950' : 'bg-gray-100'}`}
         onMouseDown={handleMouseDown}
         onDoubleClick={resetZoom}
       >
@@ -190,23 +191,23 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelectio
         </div>
         
         {/* Zoom Controls Overlay */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-zinc-900/80 backdrop-blur-md px-3 py-2 rounded-full border border-zinc-800 shadow-2xl z-20">
+        <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 backdrop-blur-md px-3 py-2 rounded-full border shadow-2xl z-20 ${theme === 'dark' ? 'bg-zinc-900/80 border-zinc-800' : 'bg-white/80 border-gray-300'}`}>
           <button 
             onClick={() => setZoom(z => Math.max(z - 0.5, 1))}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-800 text-zinc-400 transition-colors"
+            className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-zinc-800 text-zinc-400' : 'hover:bg-gray-200 text-gray-600'}`}
           >
             <i className="fa-solid fa-magnifying-glass-minus"></i>
           </button>
-          <span className="text-[10px] font-mono font-bold text-zinc-500 min-w-[40px] text-center">
+          <span className={`text-[10px] font-mono font-bold min-w-[40px] text-center ${theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'}`}>
             {Math.round(zoom * 100)}%
           </span>
           <button 
             onClick={() => setZoom(z => Math.min(z + 0.5, 10))}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-800 text-zinc-400 transition-colors"
+            className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-zinc-800 text-zinc-400' : 'hover:bg-gray-200 text-gray-600'}`}
           >
             <i className="fa-solid fa-magnifying-glass-plus"></i>
           </button>
-          <div className="w-px h-4 bg-zinc-800 mx-1"></div>
+          <div className={`w-px h-4 mx-1 ${theme === 'dark' ? 'bg-zinc-800' : 'bg-gray-300'}`}></div>
           <button 
             onClick={resetZoom}
             className="px-2 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
@@ -231,11 +232,11 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelectio
       </div>
 
       {/* Info Panel */}
-      <div className="w-80 bg-zinc-900/50 border-l border-zinc-800 flex flex-col backdrop-blur-sm">
+      <div className={`w-80 border-l flex flex-col backdrop-blur-sm ${theme === 'dark' ? 'bg-zinc-900/50 border-zinc-800' : 'bg-white/50 border-gray-200'}`}>
         {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8">
         <section>
-          <h2 className="text-xl font-bold text-white mb-1 truncate" title={group.id}>{group.id}</h2>
+          <h2 className={`text-xl font-bold mb-1 truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`} title={group.id}>{group.id}</h2>
           <div className="flex gap-2">
             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
               group.status === 'COMPLETE' ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10' : 'border-amber-500/50 text-amber-400 bg-amber-500/10'
@@ -246,34 +247,34 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelectio
         </section>
 
         <section className="grid grid-cols-2 gap-3">
-          <ExifTile icon="fa-stopwatch" label="Shutter" value={group.exif?.shutterSpeed} />
-          <ExifTile icon="fa-circle-dot" label="Aperture" value={group.exif?.aperture} />
-          <ExifTile icon="fa-camera" label="ISO" value={group.exif?.iso} />
-          <ExifTile icon="fa-arrows-left-right" label="Focal" value={group.exif?.focalLength} />
+          <ExifTile icon="fa-stopwatch" label="Shutter" value={group.exif?.shutterSpeed} theme={theme} />
+          <ExifTile icon="fa-circle-dot" label="Aperture" value={group.exif?.aperture} theme={theme} />
+          <ExifTile icon="fa-camera" label="ISO" value={group.exif?.iso} theme={theme} />
+          <ExifTile icon="fa-arrows-left-right" label="Focal" value={group.exif?.focalLength} theme={theme} />
         </section>
 
         <section className="space-y-4">
           <div className="space-y-1">
-            <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Device</p>
-            <p className="text-sm text-zinc-200">{group.exif?.model}</p>
+            <p className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'}`}>Device</p>
+            <p className={`text-sm ${theme === 'dark' ? 'text-zinc-200' : 'text-gray-700'}`}>{group.exif?.model}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Optics</p>
-            <p className="text-sm text-zinc-200">{group.exif?.lens}</p>
+            <p className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'}`}>Optics</p>
+            <p className={`text-sm ${theme === 'dark' ? 'text-zinc-200' : 'text-gray-700'}`}>{group.exif?.lens}</p>
           </div>
           <div className="space-y-1">
-             <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Timestamp</p>
-             <p className="text-sm text-zinc-200">{group.exif?.dateTime}</p>
+             <p className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'}`}>Timestamp</p>
+             <p className={`text-sm ${theme === 'dark' ? 'text-zinc-200' : 'text-gray-700'}`}>{group.exif?.dateTime}</p>
           </div>
         </section>
 
-        <section className="space-y-2 pt-6 border-t border-zinc-800">
-          <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-2">Bundle Files</p>
-          {group.jpg && <FileItem ext="JPG" size={formatSize(group.jpg.size)} />}
-          {group.raw && <FileItem ext={group.raw.extension} size={formatSize(group.raw.size)} isRaw />}
+        <section className={`space-y-2 pt-6 border-t ${theme === 'dark' ? 'border-zinc-800' : 'border-gray-200'}`}>
+          <p className={`text-[10px] uppercase font-bold tracking-wider mb-2 ${theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'}`}>Bundle Files</p>
+          {group.jpg && <FileItem ext="JPG" size={formatSize(group.jpg.size)} theme={theme} />}
+          {group.raw && <FileItem ext={group.raw.extension} size={formatSize(group.raw.size)} isRaw theme={theme} />}
         </section>
         
-        <div className="pt-4 text-[10px] text-zinc-500 italic leading-relaxed">
+        <div className={`pt-4 text-[10px] italic leading-relaxed ${theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'}`}>
           <p>• Use Mouse Wheel to zoom</p>
           <p>• Click & Drag to pan when zoomed</p>
           <p>• Double-click to reset view</p>
@@ -281,15 +282,17 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelectio
         </div>
 
         {/* Fixed Rating Actions at bottom */}
-        <section className="border-t border-zinc-800 p-4 bg-zinc-900/80">
-          <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-2">Quick Rating</p>
+        <section className={`border-t p-4 ${theme === 'dark' ? 'border-zinc-800 bg-zinc-900/80' : 'border-gray-200 bg-white/80'}`}>
+          <p className={`text-[10px] uppercase font-bold tracking-wider mb-2 ${theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'}`}>Quick Rating</p>
           <div className="flex flex-col gap-2">
             <button
               onClick={() => onUpdateSelection?.(SelectionState.PICKED)}
               className={`group relative flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
                 group.selection === SelectionState.PICKED
                   ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-500/30'
-                  : 'bg-zinc-800/40 border-zinc-700/50 text-zinc-300 hover:bg-emerald-500/10 hover:border-emerald-500/50'
+                  : (theme === 'dark' 
+                      ? 'bg-zinc-800/40 border-zinc-700/50 text-zinc-300 hover:bg-emerald-500/10 hover:border-emerald-500/50'
+                      : 'bg-gray-100/60 border-gray-300/50 text-gray-700 hover:bg-emerald-50 hover:border-emerald-300')
               }`}
               title="Press P to pick"
             >
@@ -297,15 +300,23 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelectio
                 <i className="fa-solid fa-flag text-base"></i>
                 <span className="font-semibold text-sm">Pick</span>
               </span>
-              <kbd className="px-2 py-1 text-[10px] font-mono font-bold bg-zinc-900/50 border border-zinc-700/50 rounded group-hover:bg-zinc-900 transition-colors">P</kbd>
+              <kbd className={`px-2 py-1 text-[10px] font-mono font-bold border rounded transition-colors ${
+                group.selection === SelectionState.PICKED
+                  ? 'bg-emerald-600 border-emerald-500 text-white'
+                  : (theme === 'dark' ? 'bg-zinc-900/50 border-zinc-700/50 group-hover:bg-zinc-900' : 'bg-white border-gray-300 group-hover:bg-gray-50')
+              }`}>P</kbd>
             </button>
 
             <button
               onClick={() => onUpdateSelection?.(SelectionState.UNMARKED)}
               className={`group relative flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
                 group.selection === SelectionState.UNMARKED
-                  ? 'bg-zinc-700 border-zinc-600 text-white shadow-lg'
-                  : 'bg-zinc-800/40 border-zinc-700/50 text-zinc-300 hover:bg-zinc-700/20 hover:border-zinc-600/50'
+                  ? (theme === 'dark' 
+                      ? 'bg-zinc-700 border-zinc-600 text-white shadow-lg'
+                      : 'bg-gray-200 border-gray-400 text-gray-900 shadow-md')
+                  : (theme === 'dark'
+                      ? 'bg-zinc-800/40 border-zinc-700/50 text-zinc-300 hover:bg-zinc-700/20 hover:border-zinc-600/50'
+                      : 'bg-gray-100/60 border-gray-300/50 text-gray-700 hover:bg-gray-200/60 hover:border-gray-400/50')
               }`}
               title="Press U to unmark"
             >
@@ -313,7 +324,11 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelectio
                 <i className="fa-solid fa-circle-dot text-base"></i>
                 <span className="font-semibold text-sm">Unmark</span>
               </span>
-              <kbd className="px-2 py-1 text-[10px] font-mono font-bold bg-zinc-900/50 border border-zinc-700/50 rounded group-hover:bg-zinc-900 transition-colors">U</kbd>
+              <kbd className={`px-2 py-1 text-[10px] font-mono font-bold border rounded transition-colors ${
+                group.selection === SelectionState.UNMARKED
+                  ? (theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-gray-300 border-gray-400 text-gray-800')
+                  : (theme === 'dark' ? 'bg-zinc-900/50 border-zinc-700/50 group-hover:bg-zinc-900' : 'bg-white border-gray-300 group-hover:bg-gray-50')
+              }`}>U</kbd>
             </button>
 
             <button
@@ -321,7 +336,9 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelectio
               className={`group relative flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
                 group.selection === SelectionState.REJECTED
                   ? 'bg-rose-500 border-rose-400 text-white shadow-lg shadow-rose-500/30'
-                  : 'bg-zinc-800/40 border-zinc-700/50 text-zinc-300 hover:bg-rose-500/10 hover:border-rose-500/50'
+                  : (theme === 'dark'
+                      ? 'bg-zinc-800/40 border-zinc-700/50 text-zinc-300 hover:bg-rose-500/10 hover:border-rose-500/50'
+                      : 'bg-gray-100/60 border-gray-300/50 text-gray-700 hover:bg-rose-50 hover:border-rose-300')
               }`}
               title="Press X to reject"
             >
@@ -329,7 +346,11 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelectio
                 <i className="fa-solid fa-trash-can text-base"></i>
                 <span className="font-semibold text-sm">Reject</span>
               </span>
-              <kbd className="px-2 py-1 text-[10px] font-mono font-bold bg-zinc-900/50 border border-zinc-700/50 rounded group-hover:bg-zinc-900 transition-colors">X</kbd>
+              <kbd className={`px-2 py-1 text-[10px] font-mono font-bold border rounded transition-colors ${
+                group.selection === SelectionState.REJECTED
+                  ? 'bg-rose-600 border-rose-500 text-white'
+                  : (theme === 'dark' ? 'bg-zinc-900/50 border-zinc-700/50 group-hover:bg-zinc-900' : 'bg-white border-gray-300 group-hover:bg-gray-50')
+              }`}>X</kbd>
             </button>
           </div>
         </section>
@@ -338,20 +359,20 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelectio
   );
 };
 
-const ExifTile = ({ icon, label, value }: { icon: string, label: string, value?: string }) => (
-  <div className="bg-zinc-800/40 border border-zinc-700/30 p-3 rounded-lg">
-    <div className="flex items-center gap-2 mb-1 text-zinc-500">
+const ExifTile = ({ icon, label, value, theme }: { icon: string, label: string, value?: string, theme: 'light' | 'dark' }) => (
+  <div className={`border p-3 rounded-lg ${theme === 'dark' ? 'bg-zinc-800/40 border-zinc-700/30' : 'bg-gray-100/60 border-gray-300/30'}`}>
+    <div className={`flex items-center gap-2 mb-1 ${theme === 'dark' ? 'text-zinc-500' : 'text-gray-500'}`}>
       <i className={`fa-solid ${icon} text-[10px]`}></i>
       <span className="text-[9px] uppercase font-bold">{label}</span>
     </div>
-    <div className="text-sm font-semibold text-zinc-100">{value || '--'}</div>
+    <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-zinc-100' : 'text-gray-800'}`}>{value || '--'}</div>
   </div>
 );
 
-const FileItem = ({ ext, size, isRaw }: { ext: string, size: string, isRaw?: boolean }) => (
-  <div className="flex items-center justify-between p-2 bg-zinc-800/30 rounded border border-zinc-700/20 text-xs">
-    <span className={isRaw ? 'text-indigo-400 font-bold' : 'text-zinc-400'}>{ext}</span>
-    <span className="text-zinc-600 font-mono">{size}</span>
+const FileItem = ({ ext, size, isRaw, theme }: { ext: string, size: string, isRaw?: boolean, theme: 'light' | 'dark' }) => (
+  <div className={`flex items-center justify-between p-2 rounded border text-xs ${theme === 'dark' ? 'bg-zinc-800/30 border-zinc-700/20' : 'bg-gray-100/60 border-gray-300/20'}`}>
+    <span className={isRaw ? 'text-indigo-400 font-bold' : (theme === 'dark' ? 'text-zinc-400' : 'text-gray-600')}>{ext}</span>
+    <span className={`font-mono ${theme === 'dark' ? 'text-zinc-600' : 'text-gray-500'}`}>{size}</span>
   </div>
 );
 
