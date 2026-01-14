@@ -1,10 +1,12 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { PhotoGroup, SelectionState, GroupStatus, ExportMode } from './types';
-import { groupFiles } from './utils/fileHelpers';
 import { analyzeSession } from './services/geminiService';
 import Viewer from './components/Viewer';
 import ConfirmationModal from './components/ConfirmationModal';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import { decodeRawFile } from './utils/rawLoader';
 
 const App: React.FC = () => {
   const [photos, setPhotos] = useState<PhotoGroup[]>([]);
@@ -14,6 +16,8 @@ const App: React.FC = () => {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [filter, setFilter] = useState<'ALL' | 'PICKED' | 'REJECTED' | 'UNMARKED' | 'ORPHANS'>('ALL');
   
+  const [isLoading, setIsLoading] = useState(false);
+  
   // Modals
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showExportConfirm, setShowExportConfirm] = useState(false);
@@ -22,6 +26,145 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const filmstripRef = useRef<HTMLDivElement>(null);
+
+  // Thumbnail component for lazy loading RAW previews
+  const ThumbnailImage: React.FC<{ group: PhotoGroup }> = ({ group }) => {
+    const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+      // If JPG exists, use it directly
+      if (group.jpg?.previewUrl) {
+        setThumbnailUrl(group.jpg.previewUrl);
+        return;
+      }
+
+      // If only RAW exists, decode it as thumbnail
+      if (group.raw?.path) {
+        setIsLoading(true);
+        decodeRawFile(group.raw.path, true) // true = thumbnail mode
+          .then(dataUrl => {
+            setThumbnailUrl(dataUrl);
+            setIsLoading(false);
+          })
+          .catch(error => {
+            console.error('Failed to load RAW thumbnail:', error);
+            setIsLoading(false);
+          });
+      }
+    }, [group.id, group.jpg, group.raw]);
+
+    if (isLoading) {
+      return (
+        <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+          <i className="fa-solid fa-spinner fa-spin text-zinc-600 text-xs"></i>
+        </div>
+      );
+    }
+
+    if (!thumbnailUrl) {
+      return (
+        <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+          <i className="fa-solid fa-file-image text-zinc-600 text-xs"></i>
+        </div>
+      );
+    }
+
+    return (
+      <img 
+        src={thumbnailUrl} 
+        className="w-full h-full object-cover" 
+        alt={group.id} 
+      />
+    );
+  };
+
+  // 转换Rust返回的数据为前端格式
+  const convertRustGroupsToPhotoGroups = (rustGroups: any[]): PhotoGroup[] => {
+    return rustGroups.map(group => ({
+      id: group.id,
+      jpg: group.jpg ? {
+        name: group.jpg.name,
+        extension: group.jpg.extension,
+        file: null as any, // 在Rust模式下不需要File对象
+        previewUrl: convertFileSrc(group.jpg.path),
+        size: group.jpg.size,
+        path: group.jpg.path
+      } : undefined,
+      raw: group.raw ? {
+        name: group.raw.name,
+        extension: group.raw.extension,
+        file: null as any,
+        previewUrl: convertFileSrc(group.raw.path),
+        size: group.raw.size,
+        path: group.raw.path
+      } : undefined,
+      status: group.status as GroupStatus,
+      selection: SelectionState.UNMARKED,
+      exif: group.exif
+    }));
+  };
+
+  const handleImportFiles = async () => {
+    try {
+      setIsLoading(true);
+      const filePaths = await open({
+        multiple: true,
+        filters: [{
+          name: 'Images',
+          extensions: ['jpg', 'jpeg', 'arw', 'cr2', 'nef', 'dng', 'orf', 'raf', 'srw']
+        }]
+      });
+      
+      if (!filePaths || (Array.isArray(filePaths) && filePaths.length === 0)) {
+        setIsLoading(false);
+        return;
+      }
+      
+      const paths = Array.isArray(filePaths) ? filePaths : [filePaths];
+      const rustGroups = await invoke<any[]>('scan_files', { filePaths: paths });
+      const newGroups = convertRustGroupsToPhotoGroups(rustGroups);
+      
+      setPhotos(prev => [...prev, ...newGroups]);
+      if (selectedIndex === null && newGroups.length > 0) setSelectedIndex(0);
+    } catch (error) {
+      console.error('Failed to import files:', error);
+      alert(`导入失败: ${error}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleImportFolder = async () => {
+    try {
+      setIsLoading(true);
+      const folderPath = await open({
+        directory: true,
+        multiple: false,
+      });
+      
+      if (!folderPath) {
+        setIsLoading(false);
+        return;
+      }
+      
+      const rustGroups = await invoke<any[]>('scan_folder', { folderPath });
+      const newGroups = convertRustGroupsToPhotoGroups(rustGroups);
+      
+      setPhotos(prev => [...prev, ...newGroups]);
+      if (selectedIndex === null && newGroups.length > 0) setSelectedIndex(0);
+    } catch (error) {
+      console.error('Failed to import folder:', error);
+      alert(`导入失败: ${error}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 保留原有的HTML文件输入作为备用
+    alert('请使用 "Import Folder" 按钮选择文件夹');
+  };
 
   const stats = useMemo(() => {
     return {
@@ -42,14 +185,6 @@ const App: React.FC = () => {
       default: return photos;
     }
   }, [photos, filter]);
-
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const fileList = Array.from(e.target.files) as File[];
-    const newGroups = await groupFiles(fileList);
-    setPhotos(prev => [...prev, ...newGroups]);
-    if (selectedIndex === null && newGroups.length > 0) setSelectedIndex(0);
-  };
 
   const currentPhoto = selectedIndex !== null ? filteredPhotos[selectedIndex] : null;
 
@@ -171,16 +306,20 @@ const App: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="flex bg-zinc-950 rounded-lg border border-zinc-800/50 overflow-hidden">
             <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 text-[11px] font-bold text-zinc-400 hover:bg-zinc-900 border-r border-zinc-800/50 flex items-center gap-2 transition-colors"
+              onClick={handleImportFiles}
+              disabled={isLoading}
+              className="px-4 py-2 text-[11px] font-bold text-zinc-400 hover:bg-zinc-900 border-r border-zinc-800/50 flex items-center gap-2 transition-colors disabled:opacity-50"
             >
-              <i className="fa-solid fa-file-circle-plus"></i> Import Files
+              <i className={`fa-solid fa-file-circle-plus ${isLoading ? 'animate-pulse' : ''}`}></i> 
+              {isLoading ? 'Loading...' : 'Import Files'}
             </button>
             <button 
-              onClick={() => folderInputRef.current?.click()}
-              className="px-4 py-2 text-[11px] font-bold text-zinc-400 hover:bg-zinc-900 flex items-center gap-2 transition-colors"
+              onClick={handleImportFolder}
+              disabled={isLoading}
+              className="px-4 py-2 text-[11px] font-bold text-zinc-400 hover:bg-zinc-900 flex items-center gap-2 transition-colors disabled:opacity-50"
             >
-              <i className="fa-solid fa-folder-open"></i> Import Folder
+              <i className={`fa-solid fa-folder-open ${isLoading ? 'animate-pulse' : ''}`}></i> 
+              {isLoading ? 'Loading...' : 'Import Folder'}
             </button>
           </div>
 
@@ -239,11 +378,7 @@ const App: React.FC = () => {
                     selectedIndex === idx ? 'border-indigo-500 scale-105 z-10' : 'border-transparent opacity-60 hover:opacity-100 hover:border-zinc-700'
                   }`}
                  >
-                   <img 
-                    src={p.jpg?.previewUrl || p.raw?.previewUrl} 
-                    className="w-full h-full object-cover" 
-                    alt={p.id} 
-                   />
+                   <ThumbnailImage group={p} />
                    
                    {/* Selection Marker */}
                    {p.selection === SelectionState.PICKED && <div className="absolute inset-0 border-4 border-emerald-500/50 bg-emerald-500/10 flex items-center justify-center"><i className="fa-solid fa-flag text-emerald-500 text-xs"></i></div>}

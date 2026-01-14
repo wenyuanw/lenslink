@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { PhotoGroup, SelectionState } from '../types';
 import { formatSize } from '../utils/fileHelpers';
+import { decodeRawFile, isRawExtension } from '../utils/rawLoader';
 
 interface ViewerProps {
   group: PhotoGroup;
@@ -12,8 +13,35 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass }) => {
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [rawPreviewUrl, setRawPreviewUrl] = useState<string | null>(null);
+  const [isLoadingRaw, setIsLoadingRaw] = useState(false);
+  const [rawError, setRawError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastMousePos = useRef({ x: 0, y: 0 });
+
+  // Load RAW preview if no JPG is available
+  useEffect(() => {
+    if (!group.jpg && group.raw && group.raw.path) {
+      setIsLoadingRaw(true);
+      setRawError(null);
+      setRawPreviewUrl(null);
+      
+      decodeRawFile(group.raw.path, false) // false = full quality for viewer
+        .then(dataUrl => {
+          setRawPreviewUrl(dataUrl);
+          setIsLoadingRaw(false);
+        })
+        .catch(error => {
+          console.error('Failed to load RAW preview:', error);
+          setRawError(error.message || 'Failed to decode RAW file');
+          setIsLoadingRaw(false);
+        });
+    } else {
+      setRawPreviewUrl(null);
+      setIsLoadingRaw(false);
+      setRawError(null);
+    }
+  }, [group.id, group.jpg, group.raw]);
 
   // Reset zoom when switching photos
   useEffect(() => {
@@ -81,12 +109,71 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass }) => {
             cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'
           }}
         >
-          <img 
-            src={group.jpg?.previewUrl || group.raw?.previewUrl} 
-            alt={group.id}
-            draggable={false}
-            className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-sm select-none"
-          />
+          {group.jpg ? (
+            <img 
+              src={group.jpg.previewUrl} 
+              alt={group.id}
+              draggable={false}
+              className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-sm select-none"
+            />
+          ) : isLoadingRaw ? (
+            // Loading RAW file
+            <div className="flex flex-col items-center justify-center gap-6 p-12">
+              <div className="w-32 h-32 bg-indigo-600/10 rounded-full flex items-center justify-center border-4 border-indigo-600/30 animate-pulse">
+                <i className="fa-solid fa-spinner fa-spin text-6xl text-indigo-400"></i>
+              </div>
+              <div className="text-center space-y-3">
+                <h3 className="text-2xl font-bold text-zinc-200">Decoding RAW File...</h3>
+                <p className="text-zinc-400 max-w-md leading-relaxed">
+                  Processing <span className="text-indigo-400 font-semibold">{group.raw?.extension}</span> file
+                </p>
+                <p className="text-sm text-zinc-500">{group.raw?.name}</p>
+              </div>
+            </div>
+          ) : rawError ? (
+            // Error loading RAW
+            <div className="flex flex-col items-center justify-center gap-6 p-12 bg-zinc-900/50 rounded-2xl border-2 border-dashed border-rose-700/50 shadow-2xl">
+              <div className="w-32 h-32 bg-rose-600/10 rounded-full flex items-center justify-center border-4 border-rose-600/30">
+                <i className="fa-solid fa-triangle-exclamation text-6xl text-rose-400"></i>
+              </div>
+              <div className="text-center space-y-3">
+                <h3 className="text-2xl font-bold text-zinc-200">Failed to Decode RAW</h3>
+                <p className="text-zinc-400 max-w-md leading-relaxed">
+                  Could not process <span className="text-rose-400 font-semibold">{group.raw?.extension}</span> file
+                </p>
+                <p className="text-sm text-zinc-500 font-mono">{rawError}</p>
+                <div className="pt-4 text-sm text-zinc-500">
+                  <p className="font-mono">{group.raw?.name}</p>
+                  <p className="text-xs mt-1">{formatSize(group.raw?.size || 0)}</p>
+                </div>
+              </div>
+            </div>
+          ) : rawPreviewUrl ? (
+            // RAW preview successfully decoded
+            <img 
+              src={rawPreviewUrl} 
+              alt={group.id}
+              draggable={false}
+              className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-sm select-none"
+            />
+          ) : (
+            // Fallback placeholder
+            <div className="flex flex-col items-center justify-center gap-6 p-12 bg-zinc-900/50 rounded-2xl border-2 border-dashed border-zinc-700/50 shadow-2xl">
+              <div className="w-32 h-32 bg-indigo-600/10 rounded-full flex items-center justify-center border-4 border-indigo-600/30">
+                <i className="fa-solid fa-file-image text-6xl text-indigo-400"></i>
+              </div>
+              <div className="text-center space-y-3">
+                <h3 className="text-2xl font-bold text-zinc-200">No Preview Available</h3>
+                <p className="text-zinc-400 max-w-md leading-relaxed">
+                  {group.raw ? (
+                    <>RAW file without preview<br />({group.raw.extension})</>
+                  ) : (
+                    <>No image file found</>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Zoom Controls Overlay */}

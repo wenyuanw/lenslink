@@ -1,7 +1,18 @@
 
 import { PhotoGroup, PhotoFile, GroupStatus, SelectionState, ExifData } from '../types';
+import { invoke } from '@tauri-apps/api/core';
 
 const RAW_EXTENSIONS = ['ARW', 'CR2', 'NEF', 'DNG', 'ORF', 'RAF', 'SRW'];
+
+export const readExif = async (filePath: string): Promise<ExifData | undefined> => {
+  try {
+    const exifData = await invoke<ExifData>('read_exif', { filePath });
+    return exifData;
+  } catch (error) {
+    console.error('Failed to read EXIF data:', error);
+    return undefined;
+  }
+};
 
 export const groupFiles = async (files: File[]): Promise<PhotoGroup[]> => {
   const groups: Record<string, Partial<PhotoGroup>> = {};
@@ -17,7 +28,7 @@ export const groupFiles = async (files: File[]): Promise<PhotoGroup[]> => {
       groups[baseName] = {
         id: baseName,
         selection: SelectionState.UNMARKED,
-        exif: mockExif(baseName) // In a real app, we'd use a library to parse the file
+        // EXIF will be read later from the actual file
       };
     }
 
@@ -36,7 +47,24 @@ export const groupFiles = async (files: File[]): Promise<PhotoGroup[]> => {
     }
   }
 
-  return Object.values(groups).map(g => {
+  // Read EXIF data from JPG files (prioritize JPG, fallback to RAW)
+  const groupsArray = Object.values(groups);
+  for (const group of groupsArray) {
+    const fileToRead = group.jpg?.file || group.raw?.file;
+    if (fileToRead) {
+      try {
+        // Convert File to a path that Tauri can read
+        // Note: In Tauri, we need the file path, but File object doesn't have direct path access
+        // We'll use a workaround by reading the file path from the file name
+        // For now, we'll read EXIF after the file is selected
+        // The EXIF reading will be triggered separately when needed
+      } catch (error) {
+        console.error('Failed to read EXIF for', group.id, error);
+      }
+    }
+  }
+
+  return groupsArray.map(g => {
     let status = GroupStatus.COMPLETE;
     if (g.jpg && !g.raw) status = GroupStatus.JPG_ONLY;
     if (!g.jpg && g.raw) status = GroupStatus.RAW_ONLY;

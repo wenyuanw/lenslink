@@ -27,6 +27,7 @@ export interface PhotoFile {
   file: File;
   previewUrl: string;
   size: number;
+  path?: string; // File path for Tauri backend
 }
 
 export interface PhotoGroup {
