@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LensLink - RAW + JPG Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+      @keyframes fly-out-right {
+        0% { transform: translateX(0) rotate(0); opacity: 1; }
+        100% { transform: translateX(500px) rotate(15deg); opacity: 0; }
+      }
+      @keyframes fly-out-left {
+        0% { transform: translateX(0) rotate(0); opacity: 1; }
+        100% { transform: translateX(-500px) rotate(-15deg); opacity: 0; }
+      }
+      .animate-pick { animation: fly-out-right 0.5s ease-out forwards; }
+      .animate-reject { animation: fly-out-left 0.5s ease-out forwards; }
+      
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+    </style>
+  </head>
+  <body class="bg-zinc-950 text-zinc-100 min-h-screen overflow-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>
