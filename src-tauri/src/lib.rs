@@ -358,13 +358,60 @@ fn scan_files(file_paths: Vec<String>) -> Result<Vec<PhotoGroupInfo>, String> {
     Ok(result)
 }
 
+#[tauri::command]
+fn move_to_trash(groups: Vec<PhotoGroupInfo>) -> Result<Vec<String>, String> {
+    let mut moved_files = Vec::new();
+    let mut failed_files = Vec::new();
+    
+    for group in groups {
+        // Move JPG file to trash if it exists
+        if let Some(jpg) = &group.jpg {
+            let path = Path::new(&jpg.path);
+            if path.exists() {
+                match trash::delete(path) {
+                    Ok(_) => {
+                        moved_files.push(jpg.path.clone());
+                    }
+                    Err(e) => {
+                        failed_files.push(format!("Failed to move {} to trash: {}", jpg.path, e));
+                    }
+                }
+            }
+        }
+        
+        // Move RAW file to trash if it exists
+        if let Some(raw) = &group.raw {
+            let path = Path::new(&raw.path);
+            if path.exists() {
+                match trash::delete(path) {
+                    Ok(_) => {
+                        moved_files.push(raw.path.clone());
+                    }
+                    Err(e) => {
+                        failed_files.push(format!("Failed to move {} to trash: {}", raw.path, e));
+                    }
+                }
+            }
+        }
+    }
+    
+    if !failed_files.is_empty() {
+        Err(format!(
+            "Some files failed to move to trash:\n{}",
+            failed_files.join("\n")
+        ))
+    } else {
+        Ok(moved_files)
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![greet, read_exif, scan_folder, scan_files])
+        .invoke_handler(tauri::generate_handler![greet, read_exif, scan_folder, scan_files, move_to_trash])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

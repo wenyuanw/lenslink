@@ -105,6 +105,80 @@ const App: React.FC = () => {
     }));
   };
 
+  // 检测重复路径并合并孤儿文件
+  const mergeImportedGroups = (existingPhotos: PhotoGroup[], newGroups: PhotoGroup[]): { mergedPhotos: PhotoGroup[], firstNewGroupId: string | null } => {
+    // 构建现有路径映射表：path -> PhotoGroup
+    const existingPathMap = new Map<string, PhotoGroup>();
+    existingPhotos.forEach(group => {
+      if (group.jpg?.path) existingPathMap.set(group.jpg.path, group);
+      if (group.raw?.path) existingPathMap.set(group.raw.path, group);
+    });
+
+    const mergedPhotos = [...existingPhotos];
+    const addedGroupIds = new Set<string>();
+    let firstNewGroupId: string | null = null;
+
+    newGroups.forEach(newGroup => {
+      // 检查是否有重复路径
+      const jpgDuplicate = newGroup.jpg?.path && existingPathMap.has(newGroup.jpg.path);
+      const rawDuplicate = newGroup.raw?.path && existingPathMap.has(newGroup.raw.path);
+
+      // 如果整个组都重复，跳过
+      if ((newGroup.jpg && jpgDuplicate) && (newGroup.raw && rawDuplicate)) {
+        console.log(`跳过重复照片组: ${newGroup.id}`);
+        return;
+      }
+
+      // 如果只有部分重复，跳过该文件
+      if ((newGroup.jpg && jpgDuplicate) || (newGroup.raw && rawDuplicate)) {
+        console.log(`部分文件重复，跳过: ${newGroup.id}`);
+        return;
+      }
+
+      // 检查是否能与现有的孤儿组合并
+      const existingOrphanIndex = mergedPhotos.findIndex(existing => {
+        // 同一个 ID（文件基础名相同）
+        if (existing.id !== newGroup.id) return false;
+        
+        // 现有组必须是孤儿状态
+        if (existing.status === GroupStatus.COMPLETE) return false;
+        
+        // 新导入的文件正好是缺失的配对文件
+        const canMerge = (
+          (existing.status === GroupStatus.JPG_ONLY && newGroup.raw) ||
+          (existing.status === GroupStatus.RAW_ONLY && newGroup.jpg)
+        );
+        
+        return canMerge;
+      });
+
+      if (existingOrphanIndex !== -1) {
+        // 合并孤儿文件
+        const existingOrphan = mergedPhotos[existingOrphanIndex];
+        const mergedGroup: PhotoGroup = {
+          ...existingOrphan,
+          jpg: existingOrphan.jpg || newGroup.jpg,
+          raw: existingOrphan.raw || newGroup.raw,
+          status: GroupStatus.COMPLETE,
+          // 保留原有的selection状态，不自动改变
+          exif: existingOrphan.exif || newGroup.exif,
+        };
+        mergedPhotos[existingOrphanIndex] = mergedGroup;
+        // 记录第一个新导入/合并的组
+        if (firstNewGroupId === null) firstNewGroupId = mergedGroup.id;
+        console.log(`成功合并孤儿文件: ${newGroup.id}`);
+      } else {
+        // 添加为新组，保持newGroup原有的selection状态（UNMARKED）
+        mergedPhotos.push(newGroup);
+        addedGroupIds.add(newGroup.id);
+        // 记录第一个新导入的组
+        if (firstNewGroupId === null) firstNewGroupId = newGroup.id;
+      }
+    });
+
+    return { mergedPhotos, firstNewGroupId };
+  };
+
   const handleImportFiles = async () => {
     try {
       setIsLoading(true);
@@ -125,8 +199,17 @@ const App: React.FC = () => {
       const rustGroups = await invoke<any[]>('scan_files', { filePaths: paths });
       const newGroups = convertRustGroupsToPhotoGroups(rustGroups);
       
-      setPhotos(prev => [...prev, ...newGroups]);
-      if (selectedIndex === null && newGroups.length > 0) setSelectedIndex(0);
+      // 使用合并逻辑处理新导入的文件
+      const { mergedPhotos, firstNewGroupId } = mergeImportedGroups(photos, newGroups);
+      setPhotos(mergedPhotos);
+      
+      // 自动选中第一张新导入的图片
+      if (firstNewGroupId !== null) {
+        const newIndex = mergedPhotos.findIndex(p => p.id === firstNewGroupId);
+        if (newIndex !== -1) setSelectedIndex(newIndex);
+      } else if (selectedIndex === null && mergedPhotos.length > 0) {
+        setSelectedIndex(0);
+      }
     } catch (error) {
       console.error('Failed to import files:', error);
       alert(`导入失败: ${error}`);
@@ -151,8 +234,17 @@ const App: React.FC = () => {
       const rustGroups = await invoke<any[]>('scan_folder', { folderPath });
       const newGroups = convertRustGroupsToPhotoGroups(rustGroups);
       
-      setPhotos(prev => [...prev, ...newGroups]);
-      if (selectedIndex === null && newGroups.length > 0) setSelectedIndex(0);
+      // 使用合并逻辑处理新导入的文件
+      const { mergedPhotos, firstNewGroupId } = mergeImportedGroups(photos, newGroups);
+      setPhotos(mergedPhotos);
+      
+      // 自动选中第一张新导入的图片
+      if (firstNewGroupId !== null) {
+        const newIndex = mergedPhotos.findIndex(p => p.id === firstNewGroupId);
+        if (newIndex !== -1) setSelectedIndex(newIndex);
+      } else if (selectedIndex === null && mergedPhotos.length > 0) {
+        setSelectedIndex(0);
+      }
     } catch (error) {
       console.error('Failed to import folder:', error);
       alert(`导入失败: ${error}`);
@@ -212,10 +304,49 @@ const App: React.FC = () => {
     }, 400);
   }, [selectedIndex, currentPhoto, navigate]);
 
-  const executeFinalDelete = () => {
-    setPhotos(prev => prev.filter(p => p.selection !== SelectionState.REJECTED));
-    setShowDeleteConfirm(false);
-    setSelectedIndex(photos.length > 0 ? 0 : null);
+  const executeFinalDelete = async () => {
+    try {
+      // 获取要删除的组
+      const rejectedGroups = photos.filter(p => p.selection === SelectionState.REJECTED);
+      
+      if (rejectedGroups.length === 0) {
+        setShowDeleteConfirm(false);
+        return;
+      }
+      
+      // 将组转换为 Rust 可接受的格式
+      const groupsToDelete = rejectedGroups.map(group => ({
+        id: group.id,
+        jpg: group.jpg ? {
+          name: group.jpg.name,
+          extension: group.jpg.extension,
+          path: group.jpg.path,
+          size: group.jpg.size
+        } : null,
+        raw: group.raw ? {
+          name: group.raw.name,
+          extension: group.raw.extension,
+          path: group.raw.path,
+          size: group.raw.size
+        } : null,
+        status: group.status,
+        exif: group.exif || null
+      }));
+      
+      // 调用 Rust 命令将文件移动到回收站
+      const movedFiles = await invoke<string[]>('move_to_trash', { groups: groupsToDelete });
+      
+      // 成功移动后，从状态中移除这些组
+      setPhotos(prev => prev.filter(p => p.selection !== SelectionState.REJECTED));
+      setShowDeleteConfirm(false);
+      setSelectedIndex(photos.length > rejectedGroups.length ? 0 : null);
+      
+      console.log(`Successfully moved ${movedFiles.length} files to trash`);
+    } catch (error) {
+      console.error('Failed to move files to trash:', error);
+      alert(`删除失败: ${error}`);
+      setShowDeleteConfirm(false);
+    }
   };
 
   const handleExportStart = (mode: ExportMode) => {
@@ -365,7 +496,7 @@ const App: React.FC = () => {
           <>
             {/* Viewer Component */}
             {currentPhoto && (
-              <Viewer group={currentPhoto} animationClass={animationClass} />
+              <Viewer group={currentPhoto} animationClass={animationClass} onUpdateSelection={updateSelection} />
             )}
 
             {/* Filmstrip / Thumbnails */}
@@ -402,8 +533,8 @@ const App: React.FC = () => {
       {/* Modals */}
       {showDeleteConfirm && (
         <ConfirmationModal 
-          title="Confirm Deletion"
-          confirmLabel="Purge Files"
+          title="Move to Trash"
+          confirmLabel="Move to Trash"
           type="delete"
           groups={photos.filter(p => p.selection === SelectionState.REJECTED)}
           onConfirm={executeFinalDelete}

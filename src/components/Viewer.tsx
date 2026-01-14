@@ -7,9 +7,10 @@ import { decodeRawFile, isRawExtension } from '../utils/rawLoader';
 interface ViewerProps {
   group: PhotoGroup;
   animationClass: string;
+  onUpdateSelection?: (state: SelectionState) => void;
 }
 
-const Viewer: React.FC<ViewerProps> = ({ group, animationClass }) => {
+const Viewer: React.FC<ViewerProps> = ({ group, animationClass, onUpdateSelection }) => {
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -49,14 +50,27 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass }) => {
     setOffset({ x: 0, y: 0 });
   }, [group.id]);
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = -e.deltaY;
-    const factor = 0.1;
-    const newZoom = Math.min(Math.max(zoom + (delta > 0 ? factor : -factor) * zoom, 1), 10);
-    setZoom(newZoom);
-    if (newZoom === 1) setOffset({ x: 0, y: 0 });
-  };
+  // Handle wheel event with passive: false to allow preventDefault
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = -e.deltaY;
+      const factor = 0.1;
+      setZoom(prevZoom => {
+        const newZoom = Math.min(Math.max(prevZoom + (delta > 0 ? factor : -factor) * prevZoom, 1), 10);
+        if (newZoom === 1) setOffset({ x: 0, y: 0 });
+        return newZoom;
+      });
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (zoom > 1) {
@@ -97,13 +111,12 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass }) => {
       {/* Main Image Stage */}
       <div 
         ref={containerRef}
-        className="flex-1 bg-zinc-950 flex items-center justify-center p-8 relative overflow-hidden cursor-crosshair"
-        onWheel={handleWheel}
+        className="flex-1 bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden cursor-crosshair"
         onMouseDown={handleMouseDown}
         onDoubleClick={resetZoom}
       >
         <div 
-          className="transition-transform duration-75 ease-out will-change-transform"
+          className="transition-transform duration-75 ease-out will-change-transform max-w-full max-h-full flex items-center justify-center"
           style={{ 
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
             cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'
@@ -114,7 +127,7 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass }) => {
               src={group.jpg.previewUrl} 
               alt={group.id}
               draggable={false}
-              className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-sm select-none"
+              className="max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-sm select-none"
             />
           ) : isLoadingRaw ? (
             // Loading RAW file
@@ -154,7 +167,7 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass }) => {
               src={rawPreviewUrl} 
               alt={group.id}
               draggable={false}
-              className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-sm select-none"
+              className="max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-sm select-none"
             />
           ) : (
             // Fallback placeholder
@@ -218,7 +231,9 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass }) => {
       </div>
 
       {/* Info Panel */}
-      <div className="w-80 bg-zinc-900/50 border-l border-zinc-800 p-6 flex flex-col gap-8 overflow-y-auto backdrop-blur-sm">
+      <div className="w-80 bg-zinc-900/50 border-l border-zinc-800 flex flex-col backdrop-blur-sm">
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8">
         <section>
           <h2 className="text-xl font-bold text-white mb-1 truncate" title={group.id}>{group.id}</h2>
           <div className="flex gap-2">
@@ -258,11 +273,66 @@ const Viewer: React.FC<ViewerProps> = ({ group, animationClass }) => {
           {group.raw && <FileItem ext={group.raw.extension} size={formatSize(group.raw.size)} isRaw />}
         </section>
         
-        <div className="mt-auto pt-4 text-[10px] text-zinc-500 italic leading-relaxed">
+        <div className="pt-4 text-[10px] text-zinc-500 italic leading-relaxed">
           <p>• Use Mouse Wheel to zoom</p>
           <p>• Click & Drag to pan when zoomed</p>
           <p>• Double-click to reset view</p>
         </div>
+        </div>
+
+        {/* Fixed Rating Actions at bottom */}
+        <section className="border-t border-zinc-800 p-4 bg-zinc-900/80">
+          <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-2">Quick Rating</p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => onUpdateSelection?.(SelectionState.PICKED)}
+              className={`group relative flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
+                group.selection === SelectionState.PICKED
+                  ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-500/30'
+                  : 'bg-zinc-800/40 border-zinc-700/50 text-zinc-300 hover:bg-emerald-500/10 hover:border-emerald-500/50'
+              }`}
+              title="Press P to pick"
+            >
+              <span className="flex items-center gap-3">
+                <i className="fa-solid fa-flag text-base"></i>
+                <span className="font-semibold text-sm">Pick</span>
+              </span>
+              <kbd className="px-2 py-1 text-[10px] font-mono font-bold bg-zinc-900/50 border border-zinc-700/50 rounded group-hover:bg-zinc-900 transition-colors">P</kbd>
+            </button>
+
+            <button
+              onClick={() => onUpdateSelection?.(SelectionState.UNMARKED)}
+              className={`group relative flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
+                group.selection === SelectionState.UNMARKED
+                  ? 'bg-zinc-700 border-zinc-600 text-white shadow-lg'
+                  : 'bg-zinc-800/40 border-zinc-700/50 text-zinc-300 hover:bg-zinc-700/20 hover:border-zinc-600/50'
+              }`}
+              title="Press U to unmark"
+            >
+              <span className="flex items-center gap-3">
+                <i className="fa-solid fa-circle-dot text-base"></i>
+                <span className="font-semibold text-sm">Unmark</span>
+              </span>
+              <kbd className="px-2 py-1 text-[10px] font-mono font-bold bg-zinc-900/50 border border-zinc-700/50 rounded group-hover:bg-zinc-900 transition-colors">U</kbd>
+            </button>
+
+            <button
+              onClick={() => onUpdateSelection?.(SelectionState.REJECTED)}
+              className={`group relative flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
+                group.selection === SelectionState.REJECTED
+                  ? 'bg-rose-500 border-rose-400 text-white shadow-lg shadow-rose-500/30'
+                  : 'bg-zinc-800/40 border-zinc-700/50 text-zinc-300 hover:bg-rose-500/10 hover:border-rose-500/50'
+              }`}
+              title="Press X to reject"
+            >
+              <span className="flex items-center gap-3">
+                <i className="fa-solid fa-trash-can text-base"></i>
+                <span className="font-semibold text-sm">Reject</span>
+              </span>
+              <kbd className="px-2 py-1 text-[10px] font-mono font-bold bg-zinc-900/50 border border-zinc-700/50 rounded group-hover:bg-zinc-900 transition-colors">X</kbd>
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   );

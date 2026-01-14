@@ -21,7 +21,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ title, groups, co
             {title}
           </h2>
           <p className="text-sm text-zinc-500 mt-1">
-            You are about to {type === 'delete' ? 'remove' : 'export'} {groups.length} photo groups ({groups.reduce((acc, g) => acc + (g.jpg ? 1 : 0) + (g.raw ? 1 : 0), 0)} individual files).
+            You are about to {type === 'delete' ? 'move to trash' : 'export'} {groups.length} photo groups ({groups.reduce((acc, g) => acc + (g.jpg ? 1 : 0) + (g.raw ? 1 : 0), 0)} individual files).{type === 'delete' ? ' Files will be moved to the recycle bin and can be restored.' : ''}
           </p>
         </div>
         
