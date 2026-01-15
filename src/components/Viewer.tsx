@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { PhotoGroup, SelectionState } from '../types';
 import { formatSize } from '../utils/fileHelpers';
-import { decodeRawFile, getImageFromCache, preloadRawFile } from '../utils/rawLoader';
+import { decodeRawFile, getImageFromCache } from '../utils/rawLoader';
 import { getTranslations, Language } from '../i18n';
 
 interface ViewerProps {

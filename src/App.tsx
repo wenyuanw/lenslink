@@ -9,13 +9,14 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getTranslations, Language } from './i18n';
+import logoImg from './assets/logo.png';
 
 const App: React.FC = () => {
   const [photos, setPhotos] = useState<PhotoGroup[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [animationClass, setAnimationClass] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  // const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [filter, setFilter] = useState<'ALL' | 'PICKED' | 'REJECTED' | 'UNMARKED' | 'ORPHANS'>('ALL');
   
   const [isLoading, setIsLoading] = useState(false);
@@ -593,9 +594,11 @@ const App: React.FC = () => {
       <nav className={`h-14 border-b flex items-center justify-between px-6 z-20 backdrop-blur-md ${theme === 'dark' ? 'border-zinc-800 bg-zinc-900/80' : 'border-gray-200 bg-white/80'}`} data-tauri-drag-region>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center rotate-3 shadow-lg shadow-indigo-500/20 pointer-events-none">
-              <i className="fa-solid fa-camera-retro text-xs text-white"></i>
-            </div>
+            <img 
+              src={logoImg} 
+              alt="LensLink Logo" 
+              className="w-7 h-7 rounded-lg pointer-events-none object-contain"
+            />
             <span className={`font-black text-sm tracking-tighter uppercase pointer-events-none ${theme === 'dark' ? 'text-zinc-100' : 'text-gray-900'}`}>{t.appName}</span>
           </div>
   
