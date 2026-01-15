@@ -36,7 +36,7 @@ export const groupFiles = async (files: File[]): Promise<PhotoGroup[]> => {
       name: file.name,
       extension,
       file,
-      previewUrl: extension === 'JPG' ? URL.createObjectURL(file) : 'https://picsum.photos/seed/' + baseName + '/800/600',
+      previewUrl: extension === 'JPG' ? URL.createObjectURL(file) : '',
       size: file.size
     };
 
