@@ -2,6 +2,8 @@
 
 <div align="center">
 
+![Logo](docs/assets/image.png)
+
 ![LensLink Logo](https://img.shields.io/badge/LensLink-Photography%20Workflow-6366f1?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik05IDJMNy4xNyA0SDRjLTEuMSAwLTIgLjktMiAydjEyYzAgMS4xLjkgMiAyIDJoMTZjMS4xIDAgMi0uOSAyLTJWNmMwLTEuMS0uOS0yLTItMmgtMy4xN0wxNSAySDl6bTMgMTVjLTIuNzYgMC01LTIuMjQtNS01czIuMjQtNSA1LTUgNSAyLjI0IDUgNS0yLjI0IDUtNSA1eiIvPjwvc3ZnPg==)
 
 **A Modern Photo Culling and RAW Workflow Management Tool**
@@ -24,6 +26,8 @@
 
 **LensLink** is a powerful desktop application designed for photographers who shoot in RAW+JPG mode. It streamlines the photo culling process with an intuitive interface, allowing you to quickly review, rate, and organize your photos with EXIF metadata extraction, RAW file preview, and efficient batch operations.
 
+
+
 ### Why LensLink?
 
 - 🎯 **Smart Photo Grouping** - Automatically pairs RAW and JPG files with the same base name
@@ -35,6 +39,8 @@
 - 💾 **Non-Destructive** - All operations preserve original files until you're ready to export
 
 ---
+
+![alt text](docs/assets/interface.png)
 
 ## ✨ Features
 

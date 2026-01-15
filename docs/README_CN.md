@@ -2,6 +2,8 @@
 
 <div align="center">
 
+![alt text](assets/image.png)
+
 ![LensLink Logo](https://img.shields.io/badge/LensLink-摄影工作流-6366f1?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik05IDJMNy4xNyA0SDRjLTEuMSAwLTIgLjktMiAydjEyYzAgMS4xLjkgMiAyIDJoMTZjMS4xIDAgMi0uOSAyLTJWNmMwLTEuMS0uOS0yLTItMmgtMy4xN0wxNSAySDl6bTMgMTVjLTIuNzYgMC01LTIuMjQtNS01czIuMjQtNSA1LTUgNSAyLjI0IDUgNS0yLjI0IDUtNSA1eiIvPjwvc3ZnPg==)
 
 **现代化照片筛选与 RAW 工作流管理工具**
@@ -35,6 +37,7 @@
 - 💾 **无损操作** - 所有操作都保留原始文件，直到您准备导出
 
 ---
+![alt text](assets/interface.png)
 
 ## ✨ 功能特性
 
